@@ -30,6 +30,9 @@ class Book(models.Model):
     class Meta:
         ordering = ["title"]
 
+    def __str__(self):
+        return f"{self.title} - {self.author}"
+
 
 class Borrowing(models.Model):
     borrow_date = models.DateField()
@@ -40,6 +43,9 @@ class Borrowing(models.Model):
 
     class Meta:
         ordering = ["-borrow_date"]
+
+    def __str__(self):
+        return f"Borrow: {self.borrow_date} -> {self.expected_return_date}"
 
 
 class Payment(models.Model):
@@ -54,3 +60,6 @@ class Payment(models.Model):
 
     class Meta:
         ordering = ["status", "type"]
+
+    def __str__(self):
+        return f"Payment: {self.status} -> {self.type}"
