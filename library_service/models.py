@@ -10,12 +10,25 @@ class Cover(models.TextChoices):
     SOFT = "SOFT", "Soft cover"
 
 
+class PaymentStatus(models.TextChoices):
+    PENDING = "PENDING", "Pending"
+    PAID = "PAID", "Paid"
+
+
+class PaymentType(models.TextChoices):
+    PAYMENT = "PAYMENT", "Payment"
+    FINE = "FINE", "Fine"
+
+
 class Book(models.Model):
     title = models.CharField(max_length=255)
     author = models.CharField(max_length=255)
     cover = models.CharField(max_length=4, choices=Cover.choices)
     inventory = models.PositiveIntegerField()
     daily_fee = models.DecimalField(max_digits=6, decimal_places=2)
+
+    class Meta:
+        ordering = ["title"]
 
 
 class Borrowing(models.Model):
@@ -25,15 +38,8 @@ class Borrowing(models.Model):
     book = models.ForeignKey(Book, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
-
-class PaymentStatus(models.TextChoices):
-    PENDING = "PENDING", "Pending"
-    PAID = "PAID", "Paid"
-
-
-class PaymentType(models.TextChoices):
-    PAYMENT = "PAYMENT", "Payment"
-    FINE = "FINE", "Fine"
+    class Meta:
+        ordering = ["-borrow_date"]
 
 
 class Payment(models.Model):
@@ -45,3 +51,6 @@ class Payment(models.Model):
     money_to_pay = models.DecimalField(
         max_digits=10, decimal_places=2, default=Decimal("0.00")
     )
+
+    class Meta:
+        ordering = ["status", "type"]
