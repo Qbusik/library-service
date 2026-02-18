@@ -18,7 +18,15 @@ class BorrowingViewSet(viewsets.ModelViewSet):
         return [IsAdminUser()]
 
     def get_queryset(self):
-        return Borrowing.objects.filter(user=self.request.user).select_related("book")
+        queryset = Borrowing.objects.select_related("book")
+
+        if self.request.user.is_superuser:
+            return queryset
+
+        if self.request.user.is_authenticated:
+            return queryset.filter(user=self.request.user).select_related("book")
+
+        return queryset
 
     def get_serializer_class(self):
         if self.action == "retrieve":
