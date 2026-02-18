@@ -8,8 +8,8 @@ from drf_spectacular.views import (
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("users/", include("user.urls", namespace="user")),
-    path("", include("library_service.urls", namespace="core")),
+    path("users/", include("user.urls", namespace="users")),
+    path("", include("books.urls", namespace="books")),
     path("doc/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "doc/swagger/",
