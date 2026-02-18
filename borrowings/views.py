@@ -1,6 +1,9 @@
+from django.db import transaction
 from rest_framework import viewsets
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
+from books.models import Book
 from books.views import StandardPagination
 from borrowings.models import Borrowing
 from borrowings.serializers import BorrowingListSerializer, BorrowingDetailSerializer
@@ -13,18 +16,19 @@ class BorrowingViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_permissions(self):
-        if self.request.method in ("POST", "GET"):
+        if self.action in ["list", "retrieve", "create"]:
             return [IsAuthenticated()]
         return [IsAdminUser()]
 
     def get_queryset(self):
         queryset = Borrowing.objects.select_related("book")
+        user = self.request.user
 
-        if self.request.user.is_superuser:
+        if user.is_superuser:
             return queryset
 
-        if self.request.user.is_authenticated:
-            return queryset.filter(user=self.request.user).select_related("book")
+        if user.is_authenticated:
+            return queryset.filter(user=self.request.user)
 
         return queryset
 
@@ -32,3 +36,14 @@ class BorrowingViewSet(viewsets.ModelViewSet):
         if self.action == "retrieve":
             return BorrowingDetailSerializer
         return BorrowingListSerializer
+
+    def perform_create(self, serializer):
+        book = serializer.validated_data["book"]
+
+        with transaction.atomic():
+            book = Book.objects.select_for_update().get(pk=book.pk)
+            if book.inventory == 0:
+                raise ValidationError("There are no books available.")
+            book.inventory -= 1
+            book.save()
+            serializer.save(user=self.request.user)
