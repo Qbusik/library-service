@@ -9,6 +9,5 @@ router.register("books", BookViewSet, basename="books")
 app_name = "books"
 
 urlpatterns = [
-    path("users/", include("user.urls", namespace="users")),
     path("", include(router.urls)),
 ]

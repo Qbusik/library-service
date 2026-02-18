@@ -24,7 +24,7 @@ class Borrowing(models.Model):
         if self.borrow_date < date.today():
             raise ValidationError({"borrow_date": "Borrow date cannot be in the past."})
 
-        if self.expected_return_date < self.borrow_date:
+        if self.expected_return_date <= self.borrow_date:
             raise ValidationError(
                 {
                     "expected_return_date": "Expected return date must be after borrow date."
