@@ -7,6 +7,8 @@ router = routers.DefaultRouter()
 router.register("books", BookViewSet, basename="books")
 
 app_name = "library_service"
+
 urlpatterns = [
+    path("users/", include("user.urls", namespace="users")),
     path("", include(router.urls)),
 ]

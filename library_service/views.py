@@ -1,6 +1,6 @@
 from rest_framework import viewsets
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAdminUser, AllowAny, SAFE_METHODS
 
 from library_service.models import Book
 from library_service.serializers import BookListSerializer, BookDetailSerializer
@@ -17,9 +17,9 @@ class BookViewSet(viewsets.ModelViewSet):
     pagination_class = StandardPagination
 
     def get_permissions(self):
-        if self.action in ["create", "update", "partial_update", "destroy"]:
-            return [IsAdminUser()]
-        return super().get_permissions()
+        if self.request.method in SAFE_METHODS:
+            return [AllowAny()]
+        return [IsAdminUser()]
 
     def get_serializer_class(self):
         if self.action == "list":
