@@ -28,6 +28,17 @@ class TestAuthorizedUser:
         assert res.status_code == status.HTTP_200_OK
         assert res.data["count"] == 0
         data = {
+            "borrow_date": borrowing.expected_return_date,
+            "expected_return_date": borrowing.borrow_date,
+            "book": book.id,
+        }
+        res = auth_client.post(
+            reverse("borrowings:borrowings-list"),
+            data=data,
+            format="json",
+        )
+        assert res.status_code == status.HTTP_400_BAD_REQUEST
+        data = {
             "borrow_date": borrowing.borrow_date,
             "expected_return_date": borrowing.expected_return_date,
             "book": book.id,
