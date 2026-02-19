@@ -1,6 +1,7 @@
 from datetime import date
 
 from django.db import transaction
+from django.utils.dateparse import parse_date
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -29,7 +30,7 @@ class BorrowingViewSet(viewsets.ModelViewSet):
         user = self.request.user
 
         if user.is_superuser:
-            queryset = queryset
+            pass
 
         elif user.is_authenticated:
             queryset = queryset.filter(user=self.request.user)
@@ -43,7 +44,7 @@ class BorrowingViewSet(viewsets.ModelViewSet):
         if user_id:
             queryset = queryset.filter(user_id=user_id)
 
-        if is_active.lower() in ("true", "1"):
+        if is_active and is_active.lower() in ("true", "1"):
             queryset = queryset.filter(actual_return_date__isnull=True)
 
         return queryset.distinct()
@@ -79,8 +80,14 @@ class BorrowingViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        return_date_str = request.data.get("actual_return_date")
+        return_date = parse_date(return_date_str) if return_date_str else date.today()
+
+        if return_date < borrowing.borrow_date:
+            raise ValidationError("Return date cannot be before borrow date.")
+
         with transaction.atomic():
-            borrowing.actual_return_date = date.today()
+            borrowing.actual_return_date = return_date
             borrowing.save()
 
             book = borrowing.book
@@ -88,6 +95,9 @@ class BorrowingViewSet(viewsets.ModelViewSet):
             book.save()
 
         return Response(
-            {"detail": f"Book '{book.title}' returned successfully."},
+            {
+                "detail": f"Book '{book.title}' returned successfully.",
+                "return_date": return_date,
+            },
             status=status.HTTP_200_OK,
         )
