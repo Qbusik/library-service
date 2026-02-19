@@ -17,6 +17,11 @@ class BorrowingListSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("actual_return_date", "user")
 
+    def validate(self, attrs):
+        instance = Borrowing(**attrs)
+        instance.clean()
+        return attrs
+
 
 class BorrowingDetailSerializer(serializers.ModelSerializer):
     book = BookDetailSerializer()

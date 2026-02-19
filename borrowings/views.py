@@ -30,7 +30,7 @@ class BorrowingViewSet(viewsets.ModelViewSet):
         user = self.request.user
 
         if user.is_superuser:
-            queryset = queryset
+            pass
 
         elif user.is_authenticated:
             queryset = queryset.filter(user=self.request.user)
@@ -44,7 +44,7 @@ class BorrowingViewSet(viewsets.ModelViewSet):
         if user_id:
             queryset = queryset.filter(user_id=user_id)
 
-        if is_active.lower() in ("true", "1"):
+        if is_active and is_active.lower() in ("true", "1"):
             queryset = queryset.filter(actual_return_date__isnull=True)
 
         return queryset.distinct()
