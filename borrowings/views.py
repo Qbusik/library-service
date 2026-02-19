@@ -12,6 +12,7 @@ from books.models import Book
 from books.views import StandardPagination
 from borrowings.models import Borrowing
 from borrowings.serializers import BorrowingListSerializer, BorrowingDetailSerializer
+from payments.models import Payment
 
 
 class BorrowingViewSet(viewsets.ModelViewSet):
@@ -57,13 +58,29 @@ class BorrowingViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         book = serializer.validated_data["book"]
 
+        borrow_start = serializer.validated_data["borrow_date"]
+        borrow_end = serializer.validated_data["expected_return_date"]
+        days = (borrow_end - borrow_start).days
+        if days <= 0:
+            raise ValidationError("Expected return date must be after borrow date.")
+        money_to_pay = book.daily_fee * days
+
         with transaction.atomic():
             book = Book.objects.select_for_update().get(pk=book.pk)
             if book.inventory == 0:
                 raise ValidationError("This book is not available.")
             book.inventory -= 1
             book.save()
-            serializer.save(user=self.request.user)
+            borrowing = serializer.save(user=self.request.user)
+
+            Payment.objects.create(
+                status=Payment.PaymentStatus.PENDING,
+                type=Payment.PaymentType.PAYMENT,
+                borrowing=borrowing,
+                session_url="",
+                session_id="",
+                money_to_pay=money_to_pay,
+            )
 
     @action(
         detail=True,
