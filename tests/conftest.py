@@ -1,6 +1,10 @@
+import datetime
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
+
+from books.models import Book
+from borrowings.models import Borrowing
 
 
 @pytest.fixture
@@ -42,3 +46,36 @@ def admin_client(admin_user):
     client = APIClient()
     client.force_authenticate(admin_user)
     return client
+
+
+@pytest.fixture
+def book_factory(db):
+    def create(**params):
+        defaults = {
+            "title": "Test-book",
+            "author": "Test-author",
+            "cover": "SOFT",
+            "inventory": 10,
+            "daily_fee": 1.50,
+        }
+        defaults.update(params)
+        return Book.objects.create(**defaults)
+
+    return create
+
+
+@pytest.fixture
+def borrowing_factory(db, book_factory, sample_user):
+    def create(**params):
+        book = params.pop("book", book_factory())
+        user = params.pop("user", sample_user)
+        defaults = {
+            "borrow_date": datetime.date.today(),
+            "expected_return_date": datetime.date.today() + datetime.timedelta(days=10),
+            "book": book,
+            "user": user,
+        }
+        defaults.update(params)
+        return Borrowing.objects.create(**defaults)
+
+    return create
