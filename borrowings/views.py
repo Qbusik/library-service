@@ -18,6 +18,7 @@ from borrowings.serializers import (
 )
 from library_service_api.settings import FINE_MULTIPLIER
 from payments.models import Payment
+from payments.services import create_payment_session_for_payment
 
 
 class BorrowingViewSet(viewsets.ModelViewSet):
@@ -80,7 +81,7 @@ class BorrowingViewSet(viewsets.ModelViewSet):
             book.save()
             borrowing = serializer.save(user=self.request.user)
 
-            Payment.objects.create(
+            payment = Payment.objects.create(
                 status=Payment.PaymentStatus.PENDING,
                 type=Payment.PaymentType.PAYMENT,
                 borrowing=borrowing,
@@ -88,6 +89,7 @@ class BorrowingViewSet(viewsets.ModelViewSet):
                 session_id="",
                 money_to_pay=money_to_pay,
             )
+            create_payment_session_for_payment(payment)
 
     @action(
         detail=True,
@@ -121,7 +123,7 @@ class BorrowingViewSet(viewsets.ModelViewSet):
             if return_date > borrowing.expected_return_date:
                 days_overdue = (return_date - borrowing.expected_return_date).days
                 money_to_pay = book.daily_fee * days_overdue * FINE_MULTIPLIER
-                Payment.objects.create(
+                payment = Payment.objects.create(
                     status=Payment.PaymentStatus.PENDING,
                     type=Payment.PaymentType.FINE,
                     borrowing=borrowing,
@@ -129,6 +131,7 @@ class BorrowingViewSet(viewsets.ModelViewSet):
                     session_id="",
                     money_to_pay=money_to_pay,
                 )
+                create_payment_session_for_payment(payment)
 
         return Response(
             {
