@@ -2,8 +2,8 @@ import datetime
 
 from django.urls import reverse
 
-from books.models import Book
 from borrowings.models import Borrowing
+from library_service_api.settings import FINE_MULTIPLIER
 from payments.models import Payment
 
 
@@ -54,6 +54,6 @@ def test_correct_payment_created_when_book_overdue(
     payment = Payment.objects.get(borrowing=borrowing)
     assert payment.status == Payment.PaymentStatus.PENDING
     assert payment.type == Payment.PaymentType.FINE
-    assert payment.money_to_pay == 9.00
+    assert payment.money_to_pay == 4.50 * FINE_MULTIPLIER
     assert payment.session_id != ""
     assert payment.session_url != ""
