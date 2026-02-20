@@ -132,3 +132,5 @@ SPECTACULAR_SETTINGS = {
         "defaultModelExpandDepth": 2,
     },
 }
+
+FINE_MULTIPLIER = 2

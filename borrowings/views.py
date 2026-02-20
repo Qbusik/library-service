@@ -12,6 +12,7 @@ from books.models import Book
 from books.views import StandardPagination
 from borrowings.models import Borrowing
 from borrowings.serializers import BorrowingListSerializer, BorrowingDetailSerializer
+from library_service_api.settings import FINE_MULTIPLIER
 from payments.models import Payment
 
 
@@ -110,6 +111,18 @@ class BorrowingViewSet(viewsets.ModelViewSet):
             book = borrowing.book
             book.inventory += 1
             book.save()
+
+            if return_date > borrowing.expected_return_date:
+                days_overdue = (return_date - borrowing.expected_return_date).days
+                money_to_pay = book.daily_fee * days_overdue * FINE_MULTIPLIER
+                Payment.objects.create(
+                    status=Payment.PaymentStatus.PENDING,
+                    type=Payment.PaymentType.FINE,
+                    borrowing=borrowing,
+                    session_url="",
+                    session_id="",
+                    money_to_pay=money_to_pay,
+                )
 
         return Response(
             {
