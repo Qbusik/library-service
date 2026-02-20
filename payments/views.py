@@ -3,7 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from books.views import StandardPagination
 from payments.models import Payment
-from payments.serializers import PaymentListSerializer
+from payments.serializers import PaymentListSerializer, PaymentDetailSerializer
 
 
 class PaymentsViewSet(viewsets.ModelViewSet):
@@ -19,3 +19,8 @@ class PaymentsViewSet(viewsets.ModelViewSet):
             return queryset
 
         return queryset.filter(borrowing__user=self.request.user)
+
+    def get_serializer_class(self):
+        if self.action == "retrieve":
+            return PaymentDetailSerializer
+        return PaymentListSerializer
