@@ -57,3 +57,25 @@ def test_correct_payment_created_when_book_overdue(
     assert payment.money_to_pay == 4.50 * FINE_MULTIPLIER
     assert payment.session_id != ""
     assert payment.session_url != ""
+
+
+def test_user_can_see_only_own_payments_admin_all(
+    auth_client,
+    admin_client,
+    admin_user,
+    sample_user,
+    payment_factory,
+    borrowing_factory,
+):
+    admin_borrowing = borrowing_factory(user=admin_user)
+    user_borrowing = borrowing_factory(user=sample_user)
+    payment_factory(borrowing=admin_borrowing)
+    payment_factory(borrowing=user_borrowing)
+
+    res = admin_client.get(reverse("payments:payments-list"))
+    assert res.status_code == 200
+    assert res.data["count"] == 2
+
+    res = auth_client.get(reverse("payments:payments-list"))
+    assert res.status_code == 200
+    assert res.data["count"] == 1
