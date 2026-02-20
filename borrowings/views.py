@@ -17,6 +17,7 @@ from borrowings.serializers import (
     BorrowingReturnSerializer,
 )
 from library_service_api.settings import FINE_MULTIPLIER
+from notifications.telegram import send_telegram_message
 from payments.models import Payment
 from payments.services import create_payment_session_for_payment
 
@@ -90,6 +91,17 @@ class BorrowingViewSet(viewsets.ModelViewSet):
                 money_to_pay=money_to_pay,
             )
             create_payment_session_for_payment(payment, self.request)
+
+        try:
+            send_telegram_message(
+                f"New borrowing!\n"
+                f"User: {self.request.user.email}\n"
+                f"Book: {book.title}\n"
+                f"From: {borrow_start}\n"
+                f"To: {borrow_end}\n"
+            )
+        except Exception as e:
+            print(f"Failed to send telegram notification: {e}")
 
     @action(
         detail=True,
