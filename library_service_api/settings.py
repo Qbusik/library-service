@@ -1,3 +1,4 @@
+import os
 from datetime import timedelta
 from pathlib import Path
 
@@ -134,3 +135,5 @@ SPECTACULAR_SETTINGS = {
 }
 
 FINE_MULTIPLIER = 2
+
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
