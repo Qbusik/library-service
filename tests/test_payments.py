@@ -26,6 +26,8 @@ def test_correct_payment_created_with_borrow(auth_client, book_factory):
     assert payment.status == Payment.PaymentStatus.PENDING
     assert payment.type == Payment.PaymentType.PAYMENT
     assert payment.money_to_pay == 15
+    assert payment.session_id != ""
+    assert payment.session_url != ""
 
 
 def test_correct_payment_created_when_book_overdue(
@@ -53,3 +55,5 @@ def test_correct_payment_created_when_book_overdue(
     assert payment.status == Payment.PaymentStatus.PENDING
     assert payment.type == Payment.PaymentType.FINE
     assert payment.money_to_pay == 9.00
+    assert payment.session_id != ""
+    assert payment.session_url != ""
