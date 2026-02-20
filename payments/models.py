@@ -27,7 +27,7 @@ class Payment(models.Model):
     )
 
     class Meta:
-        ordering = ["status", "type"]
+        ordering = ["-status", "type"]
 
     def __str__(self):
         return f"Payment: {self.status} -> {self.type}"

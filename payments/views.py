@@ -1,5 +1,8 @@
-from rest_framework import viewsets
+import stripe
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from books.views import StandardPagination
 from payments.models import Payment
@@ -24,3 +27,44 @@ class PaymentsViewSet(viewsets.ModelViewSet):
         if self.action == "retrieve":
             return PaymentDetailSerializer
         return PaymentListSerializer
+
+    @action(detail=True, methods=["get"], url_path="success")
+    def success(self, request, pk=None):
+        payment = self.get_object()
+
+        session_id = request.GET.get("session_id")
+        if not session_id:
+            return Response(
+                {"detail": "No session_id provided"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            session = stripe.checkout.Session.retrieve(session_id)
+            if session.payment_status == "paid":
+                payment.status = Payment.PaymentStatus.PAID
+                payment.save()
+        except stripe.error.StripeError:
+            return Response(
+                {"detail": "Could not verify payment with Stripe."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "detail": f"Payment for borrowing #{payment.borrowing.id} is successful.",
+                "status": payment.status,
+                "money_to_pay": payment.money_to_pay,
+            }
+        )
+
+    @action(detail=True, methods=["get"], url_path="cancel")
+    def cancel(self, request, pk=None):
+        payment = self.get_object()
+        return Response(
+            {
+                "detail": f"Payment for borrowing #{payment.borrowing.id} was canceled. You can pay later using the same session (valid 24h).",
+                "status": payment.status,
+                "money_to_pay": payment.money_to_pay,
+                "session_url": payment.session_url,
+            }
+        )

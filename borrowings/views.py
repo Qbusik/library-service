@@ -89,7 +89,7 @@ class BorrowingViewSet(viewsets.ModelViewSet):
                 session_id="",
                 money_to_pay=money_to_pay,
             )
-            create_payment_session_for_payment(payment)
+            create_payment_session_for_payment(payment, self.request)
 
     @action(
         detail=True,
@@ -131,7 +131,7 @@ class BorrowingViewSet(viewsets.ModelViewSet):
                     session_id="",
                     money_to_pay=money_to_pay,
                 )
-                create_payment_session_for_payment(payment)
+                create_payment_session_for_payment(payment, request)
 
         return Response(
             {
