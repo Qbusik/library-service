@@ -11,7 +11,11 @@ from rest_framework.response import Response
 from books.models import Book
 from books.views import StandardPagination
 from borrowings.models import Borrowing
-from borrowings.serializers import BorrowingListSerializer, BorrowingDetailSerializer
+from borrowings.serializers import (
+    BorrowingListSerializer,
+    BorrowingDetailSerializer,
+    BorrowingReturnSerializer,
+)
 from library_service_api.settings import FINE_MULTIPLIER
 from payments.models import Payment
 
@@ -54,6 +58,8 @@ class BorrowingViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == "retrieve":
             return BorrowingDetailSerializer
+        if self.action == "return_book":
+            return BorrowingReturnSerializer
         return BorrowingListSerializer
 
     def perform_create(self, serializer):
