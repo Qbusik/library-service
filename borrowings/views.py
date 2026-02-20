@@ -11,7 +11,14 @@ from rest_framework.response import Response
 from books.models import Book
 from books.views import StandardPagination
 from borrowings.models import Borrowing
-from borrowings.serializers import BorrowingListSerializer, BorrowingDetailSerializer
+from borrowings.serializers import (
+    BorrowingListSerializer,
+    BorrowingDetailSerializer,
+    BorrowingReturnSerializer,
+)
+from library_service_api.settings import FINE_MULTIPLIER
+from payments.models import Payment
+from payments.services import create_payment_session_for_payment
 
 
 class BorrowingViewSet(viewsets.ModelViewSet):
@@ -52,10 +59,19 @@ class BorrowingViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == "retrieve":
             return BorrowingDetailSerializer
+        if self.action == "return_book":
+            return BorrowingReturnSerializer
         return BorrowingListSerializer
 
     def perform_create(self, serializer):
         book = serializer.validated_data["book"]
+
+        borrow_start = serializer.validated_data["borrow_date"]
+        borrow_end = serializer.validated_data["expected_return_date"]
+        days = (borrow_end - borrow_start).days
+        if days <= 0:
+            raise ValidationError("Expected return date must be after borrow date.")
+        money_to_pay = book.daily_fee * days
 
         with transaction.atomic():
             book = Book.objects.select_for_update().get(pk=book.pk)
@@ -63,7 +79,17 @@ class BorrowingViewSet(viewsets.ModelViewSet):
                 raise ValidationError("This book is not available.")
             book.inventory -= 1
             book.save()
-            serializer.save(user=self.request.user)
+            borrowing = serializer.save(user=self.request.user)
+
+            payment = Payment.objects.create(
+                status=Payment.PaymentStatus.PENDING,
+                type=Payment.PaymentType.PAYMENT,
+                borrowing=borrowing,
+                session_url="",
+                session_id="",
+                money_to_pay=money_to_pay,
+            )
+            create_payment_session_for_payment(payment, self.request)
 
     @action(
         detail=True,
@@ -93,6 +119,19 @@ class BorrowingViewSet(viewsets.ModelViewSet):
             book = borrowing.book
             book.inventory += 1
             book.save()
+
+            if return_date > borrowing.expected_return_date:
+                days_overdue = (return_date - borrowing.expected_return_date).days
+                money_to_pay = book.daily_fee * days_overdue * FINE_MULTIPLIER
+                payment = Payment.objects.create(
+                    status=Payment.PaymentStatus.PENDING,
+                    type=Payment.PaymentType.FINE,
+                    borrowing=borrowing,
+                    session_url="",
+                    session_id="",
+                    money_to_pay=money_to_pay,
+                )
+                create_payment_session_for_payment(payment, request)
 
         return Response(
             {

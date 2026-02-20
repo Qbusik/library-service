@@ -1,10 +1,13 @@
 import datetime
+from decimal import Decimal
+
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
 from books.models import Book
 from borrowings.models import Borrowing
+from payments.models import Payment
 
 
 @pytest.fixture
@@ -77,5 +80,23 @@ def borrowing_factory(db, book_factory, sample_user):
         }
         defaults.update(params)
         return Borrowing.objects.create(**defaults)
+
+    return create
+
+
+@pytest.fixture
+def payment_factory(db, borrowing_factory):
+    def create(**params):
+        borrowing = params.pop("borrowing", borrowing_factory())
+        defaults = {
+            "status": "PENDING",
+            "type": "PAYMENT",
+            "borrowing": borrowing,
+            "session_url": "",
+            "session_id": "",
+            "money_to_pay": Decimal("10.00"),
+        }
+        defaults.update(params)
+        return Payment.objects.create(**defaults)
 
     return create
