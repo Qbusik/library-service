@@ -16,7 +16,9 @@ class PaymentsViewSet(viewsets.ModelViewSet):
     pagination_class = StandardPagination
 
     def get_queryset(self):
-        queryset = Payment.objects.select_related("borrowing")
+        queryset = Payment.objects.select_related(
+            "borrowing", "borrowing__book", "borrowing__user"
+        )
         user = self.request.user
 
         if user.is_superuser:
