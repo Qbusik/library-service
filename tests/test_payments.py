@@ -1,4 +1,5 @@
 import datetime
+from decimal import Decimal
 
 from django.urls import reverse
 
@@ -54,7 +55,7 @@ def test_correct_payment_created_when_book_overdue(
     payment = Payment.objects.get(borrowing=borrowing)
     assert payment.status == Payment.PaymentStatus.PENDING
     assert payment.type == Payment.PaymentType.FINE
-    assert payment.money_to_pay == 4.50 * FINE_MULTIPLIER
+    assert payment.money_to_pay == Decimal(4.50) * FINE_MULTIPLIER
     assert payment.session_id != ""
     assert payment.session_url != ""
 

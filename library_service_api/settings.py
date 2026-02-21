@@ -1,5 +1,6 @@
 import os
 from datetime import timedelta
+from decimal import Decimal
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -152,4 +153,4 @@ STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-FINE_MULTIPLIER = int(os.getenv("FINE_MULTIPLIER"))
+FINE_MULTIPLIER = Decimal(os.getenv("FINE_MULTIPLIER"))
