@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from books.views import StandardPagination
+from notifications.telegram import send_telegram_message
 from payments.models import Payment
 from payments.serializers import PaymentListSerializer, PaymentDetailSerializer
 
@@ -48,6 +49,17 @@ class PaymentsViewSet(viewsets.ModelViewSet):
                 {"detail": "Could not verify payment with Stripe."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        try:
+            send_telegram_message(
+                f"✅ Payment completed!\n"
+                f"User: {payment.borrowing.user.email}\n"
+                f"Book: {payment.borrowing.book.title}\n"
+                f"Amount: {payment.money_to_pay} USD\n"
+                f"Type: {payment.type}"
+            )
+        except Exception as e:
+            print(f"Failed to send telegram notification: {e}")
 
         return Response(
             {
