@@ -3,6 +3,7 @@ import pytest
 from django.urls import reverse
 from rest_framework import status
 
+from payments.models import Payment
 from tests.conftest import borrowing_factory, auth_client
 
 
@@ -70,6 +71,39 @@ class TestAuthorizedUser:
         return_date = (datetime.date.today() + datetime.timedelta(days=20)).isoformat()
         res = auth_client.post(url, {"actual_return_date": return_date}, format="json")
         assert res.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_user_cant_borrow_when_has_unpaid_payments(
+        self, book_factory, borrowing_factory, auth_client, sample_user
+    ):
+        book = book_factory()
+        borrowing = borrowing_factory()
+        payment = Payment.objects.create(
+            type=Payment.PaymentType.PAYMENT,
+            status=Payment.PaymentStatus.PENDING,
+            borrowing=borrowing,
+            session_url="",
+            session_id="",
+            money_to_pay=10.00,
+        )
+        data = {
+            "borrow_date": borrowing.borrow_date,
+            "expected_return_date": borrowing.expected_return_date,
+            "book": book.id,
+        }
+        res = auth_client.post(
+            reverse("borrowings:borrowings-list"),
+            data=data,
+            format="json",
+        )
+        assert res.status_code == status.HTTP_400_BAD_REQUEST
+        payment.status = Payment.PaymentStatus.PAID
+        payment.save()
+        res = auth_client.post(
+            reverse("borrowings:borrowings-list"),
+            data=data,
+            format="json",
+        )
+        assert res.status_code == status.HTTP_201_CREATED
 
 
 @pytest.mark.django_db
