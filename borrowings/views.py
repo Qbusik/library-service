@@ -55,6 +55,9 @@ class BorrowingViewSet(viewsets.ModelViewSet):
         if is_active and is_active.lower() in ("true", "1"):
             queryset = queryset.filter(actual_return_date__isnull=True)
 
+        if is_active and is_active.lower() in ("false", "0"):
+            queryset = queryset.filter(actual_return_date__isnull=False)
+
         return queryset.distinct()
 
     def get_serializer_class(self):
