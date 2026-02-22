@@ -6,16 +6,11 @@ from pathlib import Path
 from celery.schedules import crontab
 from dotenv import load_dotenv
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
-
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
-
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 
@@ -32,6 +27,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "drf_spectacular",
+    "library_service_api",
     "user",
     "books",
     "borrowings",
@@ -75,8 +71,11 @@ WSGI_APPLICATION = "library_service_api.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "HOST": os.environ["POSTGRES_HOST"],
+        "NAME": os.environ["POSTGRES_DB"],
+        "USER": os.environ["POSTGRES_USER"],
+        "PASSWORD": os.environ["POSTGRES_PASSWORD"],
     }
 }
 
@@ -119,6 +118,11 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {"anon": "500/day", "user": "5000/day"},
 }
 
 SIMPLE_JWT = {
@@ -141,8 +145,9 @@ SPECTACULAR_SETTINGS = {
     },
 }
 
-CELERY_BROKER_URL = "redis://localhost:6379/0"
-CELERY_RESULT_BACKEND = "redis://localhost:6379/1"
+CELERY_BROKER_URL = "redis://redis:6379/0"
+CELERY_RESULT_BACKEND = "redis://redis:6379/0"
+CELERY_TIMEZONE = "UTC"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"

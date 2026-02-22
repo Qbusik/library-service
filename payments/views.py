@@ -1,5 +1,5 @@
 import stripe
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -53,7 +53,15 @@ class PaymentsViewSet(viewsets.ReadOnlyModelViewSet):
         description=(
             "Stripe redirect URL called after a successful Checkout payment. "
             "Verifies the Stripe session and marks the payment as PAID in the system."
-        )
+        ),
+        parameters=[
+            OpenApiParameter(
+                name="pk",
+                description="ID of the payment",
+                required=True,
+                type=int,
+            )
+        ],
     )
     @action(detail=True, methods=["get"], url_path="success")
     def success(self, request, pk=None):
@@ -100,7 +108,15 @@ class PaymentsViewSet(viewsets.ReadOnlyModelViewSet):
             "Stripe redirect URL called when the user cancels the Checkout payment. "
             "Does not change payment status, but returns the existing session URL "
             "so the user can retry payment later (Stripe sessions are valid ~24h)."
-        )
+        ),
+        parameters=[
+            OpenApiParameter(
+                name="pk",
+                description="ID of the payment",
+                required=True,
+                type=int,
+            )
+        ],
     )
     @action(detail=True, methods=["get"], url_path="cancel")
     def cancel(self, request, pk=None):
@@ -119,7 +135,15 @@ class PaymentsViewSet(viewsets.ReadOnlyModelViewSet):
             "API endpoint to renew an expired Stripe Checkout session. "
             "Creates a new Stripe session and updates session_id and session_url "
             "for the existing payment record."
-        )
+        ),
+        parameters=[
+            OpenApiParameter(
+                name="pk",
+                description="ID of the payment",
+                required=True,
+                type=int,
+            )
+        ],
     )
     @action(detail=True, methods=["get"], url_path="renew")
     def renew(self, request, pk=None):
