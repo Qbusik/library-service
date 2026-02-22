@@ -1,6 +1,7 @@
 import stripe
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -8,6 +9,7 @@ from books.views import StandardPagination
 from notifications.telegram import send_telegram_message
 from payments.models import Payment
 from payments.serializers import PaymentListSerializer, PaymentDetailSerializer
+from payments.services import create_payment_session_for_payment
 
 
 class PaymentsViewSet(viewsets.ModelViewSet):
@@ -82,3 +84,28 @@ class PaymentsViewSet(viewsets.ModelViewSet):
                 "session_url": payment.session_url,
             }
         )
+
+    @action(detail=True, methods=["get"], url_path="renew")
+    def renew(self, request, pk=None):
+        payment = self.get_object()
+
+        if payment.status == Payment.PaymentStatus.PAID:
+            return Response(
+                {"detail": "Payment is already completed.", "status": payment.status},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            session_id, session_url = create_payment_session_for_payment(
+                payment, request
+            )
+            return Response(
+                {
+                    "detail": "Payment session renewed successfully.",
+                    "session_url": session_url,
+                    "status": payment.status,
+                    "money_to_pay": payment.money_to_pay,
+                }
+            )
+        except Exception as e:
+            raise ValidationError(f"Failed to renew payment session: {str(e)}")

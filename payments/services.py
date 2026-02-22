@@ -49,6 +49,7 @@ def create_payment_session_for_payment(payment: Payment, request):
 
     payment.session_id = session.id
     payment.session_url = session.url
+    payment.status = Payment.PaymentStatus.PENDING
     payment.save()
 
     return session.id, session.url
