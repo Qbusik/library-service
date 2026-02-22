@@ -21,7 +21,11 @@ class BorrowingListSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         user = self.context["request"].user
         unpaid_payments = Payment.objects.filter(
-            borrowing__user=user, status=Payment.PaymentStatus.PENDING
+            borrowing__user=user,
+            status__in=[
+                Payment.PaymentStatus.PENDING,
+                Payment.PaymentStatus.EXPIRED,
+            ],
         )
 
         if unpaid_payments.exists():

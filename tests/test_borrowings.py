@@ -96,6 +96,14 @@ class TestAuthorizedUser:
             format="json",
         )
         assert res.status_code == status.HTTP_400_BAD_REQUEST
+        payment.status = Payment.PaymentStatus.EXPIRED
+        payment.save()
+        res = auth_client.post(
+            reverse("borrowings:borrowings-list"),
+            data=data,
+            format="json",
+        )
+        assert res.status_code == status.HTTP_400_BAD_REQUEST
         payment.status = Payment.PaymentStatus.PAID
         payment.save()
         res = auth_client.post(
