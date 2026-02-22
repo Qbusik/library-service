@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAdminUser, AllowAny, SAFE_METHODS
@@ -12,6 +13,22 @@ class StandardPagination(PageNumberPagination):
 
 
 class BookViewSet(viewsets.ModelViewSet):
+    """
+    API endpoints for managing books in the library catalog.
+
+    All users can:
+    - list all books,
+    - retrieve book details.
+
+    Admin users can:
+    - create new books,
+    - update existing books,
+    - delete books.
+
+    Supports filtering by:
+    - title (case-insensitive, partial match),
+    - author (case-insensitive, partial match).
+    """
     queryset = Book.objects.all()
     serializer_class = BookDetailSerializer
     pagination_class = StandardPagination
@@ -39,3 +56,22 @@ class BookViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(author__icontains=author)
 
         return queryset.distinct()
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="title",
+                description="Filter books by title (case-insensitive, partial match).",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                name="author",
+                description="Filter books by author (case-insensitive, partial match).",
+                required=False,
+                type=str,
+            ),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)

@@ -14,7 +14,6 @@ click-repl==0.3.0
 colorama==0.4.6
 cron_descriptor==2.0.6
 Django==5.2.11
-django-celery-beat==2.8.1
 django-timezone-field==7.2.1
 djangorestframework==3.16.1
 djangorestframework_simplejwt==5.5.1
@@ -31,6 +30,8 @@ pathspec==1.0.4
 platformdirs==4.9.2
 pluggy==1.6.0
 prompt_toolkit==3.0.52
+psycopg==3.3.3
+psycopg-binary==3.3.3
 Pygments==2.19.2
 PyJWT==2.11.0
 pytest==9.0.2

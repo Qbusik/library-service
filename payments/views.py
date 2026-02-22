@@ -1,6 +1,8 @@
 import stripe
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -8,9 +10,25 @@ from books.views import StandardPagination
 from notifications.telegram import send_telegram_message
 from payments.models import Payment
 from payments.serializers import PaymentListSerializer, PaymentDetailSerializer
+from payments.services import create_payment_session_for_payment
 
 
-class PaymentsViewSet(viewsets.ModelViewSet):
+class PaymentsViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Read-only API endpoints for viewing payment records.
+
+    Authenticated users can:
+    - list and retrieve their own payments.
+
+    Admin users can:
+    - view all payments in the system.
+
+    The view also provides Stripe-related redirect and utility endpoints:
+    - success: called by Stripe after successful payment,
+    - cancel: called when a user cancels the payment in Stripe Checkout,
+    - renew: creates a new Stripe Checkout session for expired payments.
+    """
+
     serializer_class = PaymentListSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = StandardPagination
@@ -31,6 +49,20 @@ class PaymentsViewSet(viewsets.ModelViewSet):
             return PaymentDetailSerializer
         return PaymentListSerializer
 
+    @extend_schema(
+        description=(
+            "Stripe redirect URL called after a successful Checkout payment. "
+            "Verifies the Stripe session and marks the payment as PAID in the system."
+        ),
+        parameters=[
+            OpenApiParameter(
+                name="pk",
+                description="ID of the payment",
+                required=True,
+                type=int,
+            )
+        ],
+    )
     @action(detail=True, methods=["get"], url_path="success")
     def success(self, request, pk=None):
         payment = self.get_object()
@@ -71,6 +103,21 @@ class PaymentsViewSet(viewsets.ModelViewSet):
             }
         )
 
+    @extend_schema(
+        description=(
+            "Stripe redirect URL called when the user cancels the Checkout payment. "
+            "Does not change payment status, but returns the existing session URL "
+            "so the user can retry payment later (Stripe sessions are valid ~24h)."
+        ),
+        parameters=[
+            OpenApiParameter(
+                name="pk",
+                description="ID of the payment",
+                required=True,
+                type=int,
+            )
+        ],
+    )
     @action(detail=True, methods=["get"], url_path="cancel")
     def cancel(self, request, pk=None):
         payment = self.get_object()
@@ -82,3 +129,43 @@ class PaymentsViewSet(viewsets.ModelViewSet):
                 "session_url": payment.session_url,
             }
         )
+
+    @extend_schema(
+        description=(
+            "API endpoint to renew an expired Stripe Checkout session. "
+            "Creates a new Stripe session and updates session_id and session_url "
+            "for the existing payment record."
+        ),
+        parameters=[
+            OpenApiParameter(
+                name="pk",
+                description="ID of the payment",
+                required=True,
+                type=int,
+            )
+        ],
+    )
+    @action(detail=True, methods=["get"], url_path="renew")
+    def renew(self, request, pk=None):
+        payment = self.get_object()
+
+        if payment.status == Payment.PaymentStatus.PAID:
+            return Response(
+                {"detail": "Payment is already completed.", "status": payment.status},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            session_id, session_url = create_payment_session_for_payment(
+                payment, request
+            )
+            return Response(
+                {
+                    "detail": "Payment session renewed successfully.",
+                    "session_url": session_url,
+                    "status": payment.status,
+                    "money_to_pay": payment.money_to_pay,
+                }
+            )
+        except Exception as e:
+            raise ValidationError(f"Failed to renew payment session: {str(e)}")

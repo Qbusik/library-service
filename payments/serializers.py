@@ -19,7 +19,6 @@ class PaymentDetailSerializer(serializers.ModelSerializer):
             "type",
             "borrowing",
             "session_url",
-            "session_id",
             "money_to_pay",
         )
         read_only_fields = fields
