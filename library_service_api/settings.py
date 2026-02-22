@@ -3,6 +3,7 @@ from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
 
+from celery.schedules import crontab
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -36,7 +37,6 @@ INSTALLED_APPS = [
     "borrowings",
     "payments",
     "notifications",
-    "django_celery_beat",
 ]
 
 
@@ -146,7 +146,19 @@ CELERY_RESULT_BACKEND = "redis://localhost:6379/1"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
-CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+
+
+CELERY_BEAT_SCHEDULE = {
+    "check-stripe-sessions-every-minute": {
+        "task": "payments.tasks.check_expired_sessions",
+        "schedule": 60,
+    },
+    "check-overdue-borrowings-at-9am": {
+        "task": "borrowings.tasks.check_overdue_borrowings",
+        "schedule": crontab(hour=9, minute=0),
+    },
+}
+
 
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 
