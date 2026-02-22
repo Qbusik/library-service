@@ -2,13 +2,14 @@ import stripe
 from celery import shared_task
 from django.conf import settings
 from payments.models import Payment
+import logging
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
+logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True, autoretry_for=(Exception,), retry_backoff=10)
 def check_expired_sessions(self):
-    print("RUNNING: check_expired_sessions")
     payments = Payment.objects.filter(
         status=Payment.PaymentStatus.PENDING,
         type=Payment.PaymentType.PAYMENT,
@@ -24,7 +25,7 @@ def check_expired_sessions(self):
                 expired_ids.append(payment.id)
 
         except stripe.error.StripeError as e:
-            print(f"Stripe error for payment {payment.id}: {e}")
+            logger.warning(f"Stripe error for payment {payment.id}: {e}")
 
     if expired_ids:
         Payment.objects.filter(id__in=expired_ids).update(
