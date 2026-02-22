@@ -3,7 +3,7 @@ from django.urls import reverse
 from rest_framework import status
 
 
-def test_only_admin_can_create_and_modify_books(auth_client, admin_client):
+def test_only_admin_can_create_modify_and_delete_books(auth_client, admin_client):
     data = {
         "title": "Test",
         "author": "Test-Author",
@@ -29,6 +29,8 @@ def test_only_admin_can_create_and_modify_books(auth_client, admin_client):
     )
     assert res.status_code == status.HTTP_200_OK
     assert res.data["inventory"] == 120
+    res = admin_client.delete(reverse("books:books-detail", args=[book_id]))
+    assert res.status_code == status.HTTP_204_NO_CONTENT
 
 
 @pytest.mark.django_db
