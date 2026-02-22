@@ -10,10 +10,9 @@ logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, autoretry_for=(Exception,), retry_backoff=10)
 def check_expired_sessions(self):
-    payments = Payment.objects.filter(
-        status=Payment.PaymentStatus.PENDING,
-        type=Payment.PaymentType.PAYMENT,
-    ).only("id", "session_id")
+    payments = Payment.objects.filter(status=Payment.PaymentStatus.PENDING).only(
+        "id", "session_id"
+    )
 
     expired_ids = []
 
