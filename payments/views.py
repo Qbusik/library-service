@@ -1,4 +1,5 @@
 import stripe
+from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -12,7 +13,22 @@ from payments.serializers import PaymentListSerializer, PaymentDetailSerializer
 from payments.services import create_payment_session_for_payment
 
 
-class PaymentsViewSet(viewsets.ModelViewSet):
+class PaymentsViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Read-only API endpoints for viewing payment records.
+
+    Authenticated users can:
+    - list and retrieve their own payments.
+
+    Admin users can:
+    - view all payments in the system.
+
+    The view also provides Stripe-related redirect and utility endpoints:
+    - success: called by Stripe after successful payment,
+    - cancel: called when a user cancels the payment in Stripe Checkout,
+    - renew: creates a new Stripe Checkout session for expired payments.
+    """
+
     serializer_class = PaymentListSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = StandardPagination
@@ -33,6 +49,12 @@ class PaymentsViewSet(viewsets.ModelViewSet):
             return PaymentDetailSerializer
         return PaymentListSerializer
 
+    @extend_schema(
+        description=(
+            "Stripe redirect URL called after a successful Checkout payment. "
+            "Verifies the Stripe session and marks the payment as PAID in the system."
+        )
+    )
     @action(detail=True, methods=["get"], url_path="success")
     def success(self, request, pk=None):
         payment = self.get_object()
@@ -73,6 +95,13 @@ class PaymentsViewSet(viewsets.ModelViewSet):
             }
         )
 
+    @extend_schema(
+        description=(
+            "Stripe redirect URL called when the user cancels the Checkout payment. "
+            "Does not change payment status, but returns the existing session URL "
+            "so the user can retry payment later (Stripe sessions are valid ~24h)."
+        )
+    )
     @action(detail=True, methods=["get"], url_path="cancel")
     def cancel(self, request, pk=None):
         payment = self.get_object()
@@ -85,6 +114,13 @@ class PaymentsViewSet(viewsets.ModelViewSet):
             }
         )
 
+    @extend_schema(
+        description=(
+            "API endpoint to renew an expired Stripe Checkout session. "
+            "Creates a new Stripe session and updates session_id and session_url "
+            "for the existing payment record."
+        )
+    )
     @action(detail=True, methods=["get"], url_path="renew")
     def renew(self, request, pk=None):
         payment = self.get_object()

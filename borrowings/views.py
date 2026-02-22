@@ -2,6 +2,7 @@ from datetime import date
 
 from django.db import transaction
 from django.utils.dateparse import parse_date
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -23,6 +24,28 @@ from payments.services import create_payment_session_for_payment
 
 
 class BorrowingViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for managing book borrowings.
+
+    Allows authenticated users to:
+    - create new borrowings (rent books),
+    - list and retrieve their own borrowings.
+
+    Admin users can:
+    - view all borrowings,
+    - mark books as returned,
+    - filter borrowings by user and activity status.
+
+    Creating a borrowing automatically:
+    - decreases book inventory,
+    - calculates rental cost,
+    - creates a Stripe payment session for the rental fee.
+
+    Supports filtering by:
+    - user_id (user ID, admin only),
+    - actual_return_date (filter active or returned borrowings).
+    """
+
     queryset = Borrowing.objects.all()
     serializer_class = BorrowingListSerializer
     pagination_class = StandardPagination
@@ -34,7 +57,10 @@ class BorrowingViewSet(viewsets.ModelViewSet):
         return [IsAdminUser()]
 
     def get_queryset(self):
-        queryset = Borrowing.objects.select_related("book")
+        if self.action == "retrieve":
+            queryset = Borrowing.objects.select_related("book")
+        else:
+            queryset = Borrowing.objects.all()
         user = self.request.user
 
         if user.is_superuser:
@@ -106,6 +132,33 @@ class BorrowingViewSet(viewsets.ModelViewSet):
         except Exception as e:
             print(f"Failed to send telegram notification: {e}")
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="user_id",
+                description="Filter borrowings by user ID (admin only).",
+                required=False,
+                type=int,
+            ),
+            OpenApiParameter(
+                name="is_active",
+                description="Filter active borrowings. true = not returned, false = returned.",
+                required=False,
+                type=bool,
+            ),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @extend_schema(
+        description=(
+            "Admin endpoint to mark a borrowed book as returned. "
+            "Updates the actual_return_date, increases book inventory, "
+            "and automatically creates a Stripe payment session for overdue fines "
+            "if the book is returned after the expected return date."
+        )
+    )
     @action(
         detail=True,
         methods=["post"],

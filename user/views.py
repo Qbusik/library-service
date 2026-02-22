@@ -5,11 +5,19 @@ from user.serializers import UserSerializer
 
 
 class CreateUserView(generics.CreateAPIView):
+    """
+    Register a new user.
+    """
+
     serializer_class = UserSerializer
     permission_classes = []
 
 
 class ManageUserView(generics.RetrieveUpdateAPIView):
+    """
+    Retrieve and update user's profile.
+    """
+
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
 
