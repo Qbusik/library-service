@@ -3,6 +3,7 @@ import pytest
 from django.urls import reverse
 from rest_framework import status
 
+from borrowings.models import Borrowing
 from payments.models import Payment
 from tests.conftest import borrowing_factory, auth_client
 
@@ -56,11 +57,15 @@ class TestAuthorizedUser:
     def test_authorized_user_can_see_detail_of_only_own_borrowings(
         self, auth_client, borrowing_factory, sample_user, another_user
     ):
-        borrowing_factory(user=another_user)
-        borrowing_factory(user=sample_user)
-        res = auth_client.get(reverse("borrowings:borrowings-detail", kwargs={"pk": 1}))
+        borrowing_another = borrowing_factory(user=another_user)
+        borrowing_sample = borrowing_factory(user=sample_user)
+        res = auth_client.get(
+            reverse("borrowings:borrowings-detail", kwargs={"pk": borrowing_another.id})
+        )
         assert res.status_code == status.HTTP_404_NOT_FOUND
-        res = auth_client.get(reverse("borrowings:borrowings-detail", kwargs={"pk": 2}))
+        res = auth_client.get(
+            reverse("borrowings:borrowings-detail", kwargs={"pk": borrowing_sample.id})
+        )
         assert res.status_code == status.HTTP_200_OK
 
     def test_authorized_user_cant_return_book_by_him_self(
@@ -132,7 +137,7 @@ class TestAdminUser:
 @pytest.mark.django_db
 class TestBookInventoryInBorrowing:
     def test_book_inventory_when_borrowing_and_returning(
-        self, book_factory, borrowing_factory, auth_client, admin_client
+        self, book_factory, borrowing_factory, sample_user, auth_client, admin_client
     ):
         book = book_factory(inventory=1)
         data = {
@@ -151,6 +156,8 @@ class TestBookInventoryInBorrowing:
         assert res.status_code == status.HTTP_201_CREATED
         assert book.inventory == 0
 
+        borrowing = Borrowing.objects.filter(user=sample_user).first()
+
         res = auth_client.post(
             reverse("borrowings:borrowings-list"),
             data=data,
@@ -158,7 +165,7 @@ class TestBookInventoryInBorrowing:
         )
         assert res.status_code == status.HTTP_400_BAD_REQUEST
 
-        url = reverse("borrowings:borrowings-return-book", kwargs={"pk": 1})
+        url = reverse("borrowings:borrowings-return-book", kwargs={"pk": borrowing.id})
         return_date = (datetime.date.today() + datetime.timedelta(days=20)).isoformat()
         admin_client.post(url, {"actual_return_date": return_date}, format="json")
         book.refresh_from_db()
