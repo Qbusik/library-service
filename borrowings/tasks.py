@@ -22,3 +22,11 @@ def check_overdue_borrowings():
             f"Book: {borrowing.book.title}\n"
             f"Expected return date: {borrowing.expected_return_date.strftime('%Y-%m-%d')}"
         )
+
+
+@shared_task
+def send_telegram_message_task(message: str):
+    try:
+        send_telegram_message(message)
+    except Exception as e:
+        print(f"Failed to send telegram message: {e}")

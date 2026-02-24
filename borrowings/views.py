@@ -18,7 +18,7 @@ from borrowings.serializers import (
     BorrowingReturnSerializer,
 )
 from library_service_api.settings import FINE_MULTIPLIER
-from notifications.telegram import send_telegram_message
+from borrowings.tasks import send_telegram_message_task
 from payments.models import Payment
 from payments.services import create_payment_session_for_payment
 
@@ -64,22 +64,23 @@ class BorrowingViewSet(viewsets.ModelViewSet):
         user = self.request.user
 
         if not user.is_superuser:
-            return queryset.none()
-
-        if user.is_authenticated:
-            queryset = queryset.filter(user=self.request.user)
+            if user.is_authenticated:
+                queryset = queryset.filter(user=user)
+            else:
+                return queryset.none()
 
         user_id = self.request.query_params.get("user_id")
         is_active = self.request.query_params.get("is_active")
 
-        if user_id:
+        if user.is_superuser and user_id:
             queryset = queryset.filter(user_id=user_id)
 
-        if is_active and is_active.lower() in ("true", "1"):
-            queryset = queryset.filter(actual_return_date__isnull=True)
+        if is_active:
+            if is_active.lower() in ("true", "1"):
+                queryset = queryset.filter(actual_return_date__isnull=True)
 
-        if is_active and is_active.lower() in ("false", "0"):
-            queryset = queryset.filter(actual_return_date__isnull=False)
+            if is_active.lower() in ("false", "0"):
+                queryset = queryset.filter(actual_return_date__isnull=False)
 
         return queryset.distinct()
 
@@ -102,7 +103,7 @@ class BorrowingViewSet(viewsets.ModelViewSet):
 
         with transaction.atomic():
             book = Book.objects.select_for_update().get(pk=book.pk)
-            if book.inventory == 0:
+            if book.inventory <= 0:
                 raise ValidationError("This book is not available.")
             book.inventory -= 1
             book.save()
@@ -116,18 +117,17 @@ class BorrowingViewSet(viewsets.ModelViewSet):
                 session_id="",
                 money_to_pay=money_to_pay,
             )
-            create_payment_session_for_payment(payment, self.request)
 
-        try:
-            send_telegram_message(
-                f"New borrowing!\n"
-                f"User: {self.request.user.email}\n"
-                f"Book: {book.title}\n"
-                f"From: {borrow_start}\n"
-                f"To: {borrow_end}\n"
-            )
-        except Exception as e:
-            print(f"Failed to send telegram notification: {e}")
+        create_payment_session_for_payment(payment, self.request)
+
+        message = (
+            f"New borrowing!\n"
+            f"User: {self.request.user.email}\n"
+            f"Book: {book.title}\n"
+            f"From: {borrow_start}\n"
+            f"To: {borrow_end}\n"
+        )
+        send_telegram_message_task.delay(message)
 
     @extend_schema(
         parameters=[
