@@ -8,6 +8,7 @@ from rest_framework.response import Response
 
 from books.views import StandardPagination
 from notifications.telegram import send_telegram_message
+from borrowings.tasks import send_telegram_message_task
 from payments.models import Payment
 from payments.serializers import PaymentListSerializer, PaymentDetailSerializer
 from payments.services import create_payment_session_for_payment
@@ -67,6 +68,14 @@ class PaymentsViewSet(viewsets.ReadOnlyModelViewSet):
     def success(self, request, pk=None):
         payment = self.get_object()
 
+        if payment.status == Payment.PaymentStatus.PAID:
+            return Response(
+                {
+                    "detail": f"Payment for borrowing #{payment.borrowing.id} is already paid.",
+                    "status": payment.status,
+                }
+            )
+
         session_id = request.GET.get("session_id")
         if not session_id:
             return Response(
@@ -84,16 +93,14 @@ class PaymentsViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        try:
-            send_telegram_message(
-                f"✅ Payment completed!\n"
-                f"User: {payment.borrowing.user.email}\n"
-                f"Book: {payment.borrowing.book.title}\n"
-                f"Amount: {payment.money_to_pay} USD\n"
-                f"Type: {payment.type}"
-            )
-        except Exception as e:
-            print(f"Failed to send telegram notification: {e}")
+        message = (
+            f"✅ Payment completed!\n"
+            f"User: {payment.borrowing.user.email}\n"
+            f"Book: {payment.borrowing.book.title}\n"
+            f"Amount: {payment.money_to_pay} USD\n"
+            f"Type: {payment.type}"
+        )
+        send_telegram_message_task.delay(message)
 
         return Response(
             {
