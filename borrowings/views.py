@@ -61,13 +61,14 @@ class BorrowingViewSet(viewsets.ModelViewSet):
             queryset = Borrowing.objects.select_related("book")
         else:
             queryset = Borrowing.objects.all()
+
         user = self.request.user
 
         if user.is_superuser:
             pass
 
         elif user.is_authenticated:
-            queryset = queryset.filter(user=self.request.user)
+            queryset = queryset.filter(user=user)
 
         else:
             return queryset.none()
